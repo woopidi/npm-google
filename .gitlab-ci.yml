@@ -1,0 +1,58 @@
+variables:
+  PRIVATE_REGISTRY: "192.168.0.2:5000"
+  PUBLIC_REGISTRY: "docker.woopidi.net"
+  IMAGE_NAME: "gmail-automation"
+
+stages:
+  - Install
+  - Test
+  - Build
+  - Dockerize
+  - Deploy
+
+Install:
+  stage: Install
+  image: node:12.18.0-alpine3.9
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm install
+  artifacts:
+    paths:
+      - node_modules
+
+Test:
+  stage: Build
+  image: node:12.18.0-alpine3.9
+  script:
+    - npm run test
+
+# Dockerize:
+#   stage: Dockerize
+#   variables:
+#     IMAGE: ${PUBLIC_REGISTRY}/${IMAGE_NAME}:latest
+#   script:
+#     - echo "${PRIVATE_DOCKER_PASSWORD}" | docker login ${PUBLIC_REGISTRY} --username ${PRIVATE_DOCKER_USERNAME} --password-stdin
+#     - docker build --tag ${IMAGE} .
+#     - docker push ${IMAGE}
+#     - docker rmi ${IMAGE}
+
+# Deploy:
+#   stage: Deploy
+#   image: dieheld/kubectl-cli:1.18.3-1
+#   script:
+#     - |
+#       kubectl create secret generic gmail-automation --dry-run -n kube-system -o yaml \
+#         --from-literal=SLACK_WEBHOOK="${SLACK_WEBHOOK}" \
+#         --from-literal=MYSQL_USER="${MYSQL_USER}" \
+#         --from-literal=MYSQL_PASSWORD="${MYSQL_PASSWORD}" \
+#       | kubectl apply -f -
+#     - |
+#       kubectl create secret generic gmail-credentials --dry-run -n kube-system -o yaml \
+#         --from-file=credentials.json="${GMAIL_CREDENTIALS_PATH}" \
+#         --from-file=token.json="${GMAIL_TOKEN_PATH}" \
+#       | kubectl apply -f -
+#     - kubectl apply -Rf k8s/
